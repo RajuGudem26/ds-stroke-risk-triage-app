@@ -89,24 +89,24 @@
 ### Module 2: Exploratory Data Analysis (EDA) & Clinical Visualizations
 **Branch:** `eda-and-stats`  
 **Goal:** Uncover stroke risk patterns through univariate, bivariate, and multivariate visual storytelling (`notebooks/02_eda_and_visualizations.ipynb`) and save high-DPI charts to `docs/figures/`.
-- [ ] **2.1:** Checkout `main`, pull latest, and create branch `eda-and-stats`.
-- [ ] **2.2:** Univariate analysis: distributions of `age`, `avg_glucose_level`, `bmi`, and count plots of all categorical variables (`stroke`, `hypertension`, `heart_disease`, `smoking_status`, `work_type`, `ever_married`, `Residence_type`).
-- [ ] **2.3:** Bivariate analysis against `stroke`: stacked bar charts (stroke rate by hypertension, heart disease, smoking status, marital status, work type) and violin/box/KDE plots (`age`, `avg_glucose_level`, `bmi` by stroke outcome).
-- [ ] **2.4:** Multivariate analysis: correlation heatmap, Age vs. Avg Glucose scatter colored by Stroke, and interaction plot of Hypertension × Glucose Level on Stroke Risk.
-- [ ] **2.5:** Export all key figures at 300 DPI with clear titles, axis labels, and legends into `docs/figures/` for the Report and PPT.
-- [ ] **2.6 (Review Gate):** Verify every chart is legible, saved in `docs/figures/`, and accompanied by written clinical takeaways in Markdown cells.
+- [x] **2.1:** Checkout `main`, pull latest, and create branch `eda-and-stats`.
+- [x] **2.2:** Univariate analysis: distributions of `age`, `avg_glucose_level`, `bmi`, and count plots of all categorical variables (`stroke`, `hypertension`, `heart_disease`, `smoking_status`, `work_type`, `ever_married`, `Residence_type`).
+- [x] **2.3:** Bivariate analysis against `stroke`: stacked bar charts (stroke rate by hypertension, heart disease, smoking status, marital status, work type) and violin/box/KDE plots (`age`, `avg_glucose_level`, `bmi` by stroke outcome).
+- [x] **2.4:** Multivariate analysis: correlation heatmap, Age vs. Avg Glucose scatter colored by Stroke, and interaction plot of Hypertension × Glucose Level on Stroke Risk.
+- [x] **2.5:** Export all key figures at 300 DPI with clear titles, axis labels, and legends into `docs/figures/` for the Report and PPT.
+- [x] **2.6 (Review Gate):** Verify every chart is legible, saved in `docs/figures/`, and accompanied by written clinical takeaways in Markdown cells.
 
 ---
 
 ### Module 3: Statistical Hypothesis Testing & Epidemiological Risk Analysis
 **Branch:** `eda-and-stats` (continued)  
 **Goal:** Statistically validate hypertension, glucose, and lifestyle stroke risk factors using **Chi-Square tests**, **Normality + Mann-Whitney U / Welch's t-tests**, and **Statsmodels Logistic Regression Odds Ratios** (`src/statistical_tests.py` & `notebooks/03_statistical_hypothesis_testing.ipynb`).
-- [ ] **3.1:** Define clinical reference bins for testing: WHO BMI categories & ADA Glucose risk categories (`Normal <100`, `Prediabetes 100-125`, `High/Diabetic >=126` or clinical `>=200` high-risk tier).
-- [ ] **3.2:** Run **Chi-Square Tests of Independence** (with Cramér's V effect size) for `hypertension`, `heart_disease`, `glucose_category`, `smoking_status`, `ever_married`, `work_type`, and `Residence_type` vs. `stroke`.
-- [ ] **3.3:** Run Shapiro-Wilk / D'Agostino normality tests on `age`, `avg_glucose_level`, and `bmi`, followed by appropriate group comparison tests (**Mann-Whitney U** and **Welch's t-test**) between Stroke vs. Non-Stroke patients.
-- [ ] **3.4:** Fit an interpretable **Statsmodels Logit (Logistic Regression)** model to compute **Adjusted Odds Ratios (OR)**, 95% Confidence Intervals, and p-values for hypertension, glucose, age, heart disease, BMI, and smoking.
-- [ ] **3.5:** Export formatted statistical summary tables (`docs/figures/chi_square_results.csv` or markdown/png tables) for the Project Report.
-- [ ] **3.6 (Review Gate):** Verify all p-values, Odds Ratios, and conclusions are mathematically sound and error-free; commit, push, and merge PR `eda-and-stats` into `main`.
+- [x] **3.1:** Define clinical reference bins for testing: WHO BMI categories & ADA Glucose risk categories (`Normal <100`, `Prediabetes 100-125`, `High/Diabetic >=126` or clinical `>=200` high-risk tier).
+- [x] **3.2:** Run **Chi-Square Tests of Independence** (with Cramér's V effect size) for `hypertension`, `heart_disease`, `glucose_category`, `smoking_status`, `ever_married`, `work_type`, and `Residence_type` vs. `stroke`.
+- [x] **3.3:** Run Shapiro-Wilk / D'Agostino normality tests on `age`, `avg_glucose_level`, and `bmi`, followed by appropriate group comparison tests (**Mann-Whitney U** and **Welch's t-test**) between Stroke vs. Non-Stroke patients.
+- [x] **3.4:** Fit an interpretable **Statsmodels Logit (Logistic Regression)** model to compute **Adjusted Odds Ratios (OR)**, 95% Confidence Intervals, and p-values for hypertension, glucose, age, heart disease, BMI, and smoking.
+- [x] **3.5:** Export formatted statistical summary tables (`docs/figures/chi_square_results.csv` or markdown/png tables) for the Project Report.
+- [x] **3.6 (Review Gate):** Verify all p-values, Odds Ratios, and conclusions are mathematically sound and error-free; commit, push, and merge PR `eda-and-stats` into `main`.
 
 ---
 

@@ -239,3 +239,4 @@ if __name__ == "__main__":
     print("Raw audit summary:", raw_audit)
     print("Cleaned shape:", cleaned.shape)
     print("Smoking status distribution after cleaning:\n", cleaned["smoking_status"].value_counts())
+
