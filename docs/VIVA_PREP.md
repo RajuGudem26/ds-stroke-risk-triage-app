@@ -108,3 +108,4 @@ StandardScaler (zero mean, unit variance) is preferred for Logistic Regression b
 
 **Q25: If you could add one external data source, what would it be and why?**  
 I would add **longitudinal blood pressure readings** (systolic/diastolic over time) from EHR records. The current binary `hypertension` variable (yes/no) loses information about severity, duration, and control status. Continuous blood pressure trajectories would significantly improve risk stratification and enable time-to-event (survival) modeling.
+
