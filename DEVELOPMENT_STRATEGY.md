@@ -101,12 +101,12 @@
 ### Module 3: Statistical Hypothesis Testing & Epidemiological Risk Analysis
 **Branch:** `eda-and-stats` (continued)  
 **Goal:** Statistically validate hypertension, glucose, and lifestyle stroke risk factors using **Chi-Square tests**, **Normality + Mann-Whitney U / Welch's t-tests**, and **Statsmodels Logistic Regression Odds Ratios** (`src/statistical_tests.py` & `notebooks/03_statistical_hypothesis_testing.ipynb`).
-- [ ] **3.1:** Define clinical reference bins for testing: WHO BMI categories & ADA Glucose risk categories (`Normal <100`, `Prediabetes 100-125`, `High/Diabetic >=126` or clinical `>=200` high-risk tier).
-- [ ] **3.2:** Run **Chi-Square Tests of Independence** (with Cramér's V effect size) for `hypertension`, `heart_disease`, `glucose_category`, `smoking_status`, `ever_married`, `work_type`, and `Residence_type` vs. `stroke`.
-- [ ] **3.3:** Run Shapiro-Wilk / D'Agostino normality tests on `age`, `avg_glucose_level`, and `bmi`, followed by appropriate group comparison tests (**Mann-Whitney U** and **Welch's t-test**) between Stroke vs. Non-Stroke patients.
-- [ ] **3.4:** Fit an interpretable **Statsmodels Logit (Logistic Regression)** model to compute **Adjusted Odds Ratios (OR)**, 95% Confidence Intervals, and p-values for hypertension, glucose, age, heart disease, BMI, and smoking.
-- [ ] **3.5:** Export formatted statistical summary tables (`docs/figures/chi_square_results.csv` or markdown/png tables) for the Project Report.
-- [ ] **3.6 (Review Gate):** Verify all p-values, Odds Ratios, and conclusions are mathematically sound and error-free; commit, push, and merge PR `eda-and-stats` into `main`.
+- [x] **3.1:** Define clinical reference bins for testing: WHO BMI categories & ADA Glucose risk categories (`Normal <100`, `Prediabetes 100-125`, `High/Diabetic >=126` or clinical `>=200` high-risk tier).
+- [x] **3.2:** Run **Chi-Square Tests of Independence** (with Cramér's V effect size) for `hypertension`, `heart_disease`, `glucose_category`, `smoking_status`, `ever_married`, `work_type`, and `Residence_type` vs. `stroke`.
+- [x] **3.3:** Run Shapiro-Wilk / D'Agostino normality tests on `age`, `avg_glucose_level`, and `bmi`, followed by appropriate group comparison tests (**Mann-Whitney U** and **Welch's t-test**) between Stroke vs. Non-Stroke patients.
+- [x] **3.4:** Fit an interpretable **Statsmodels Logit (Logistic Regression)** model to compute **Adjusted Odds Ratios (OR)**, 95% Confidence Intervals, and p-values for hypertension, glucose, age, heart disease, BMI, and smoking.
+- [x] **3.5:** Export formatted statistical summary tables (`docs/figures/chi_square_results.csv` or markdown/png tables) for the Project Report.
+- [x] **3.6 (Review Gate):** Verify all p-values, Odds Ratios, and conclusions are mathematically sound and error-free; commit, push, and merge PR `eda-and-stats` into `main`.
 
 ---
 

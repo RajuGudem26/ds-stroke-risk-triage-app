@@ -61,3 +61,4 @@ CATEGORICAL_FEATURES = [
     "Residence_type",
     "smoking_status",
 ]
+
