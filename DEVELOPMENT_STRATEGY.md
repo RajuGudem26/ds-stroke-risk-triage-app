@@ -113,31 +113,31 @@
 ### Module 4: Feature Engineering & Imbalance-Aware Preprocessing Pipeline
 **Branch:** `feature-eng-and-modeling`  
 **Goal:** Build a leakage-free Scikit-Learn `ColumnTransformer` + feature engineering module (`src/feature_engineering.py`) ready for both model training and live Streamlit inference.
-- [ ] **4.1:** Checkout `main`, pull latest, and create branch `feature-eng-and-modeling`.
-- [ ] **4.2:** Engineer clinically meaningful features: `bmi_category` (WHO), `glucose_risk_tier` (ADA), `age_group`, `cardiometabolic_risk_score` (`hypertension + heart_disease + (avg_glucose_level >= 140)`), and interaction terms (`age_x_glucose`, `hypertension_x_age`).
-- [ ] **4.3:** Build a unified Scikit-Learn preprocessing pipeline:
+- [x] **4.1:** Checkout `main`, pull latest, and create branch `feature-eng-and-modeling`.
+- [x] **4.2:** Engineer clinically meaningful features: `bmi_category` (WHO), `glucose_risk_tier` (ADA), `age_group`, `cardiometabolic_risk_score` (`hypertension + heart_disease + (avg_glucose_level >= 140)`), and interaction terms (`age_x_glucose`, `hypertension_x_age`).
+- [x] **4.3:** Build a unified Scikit-Learn preprocessing pipeline:
   - Numeric features: Iterative/Median Imputer + `StandardScaler`
   - Categorical features: Mode/Domain Imputer + `OneHotEncoder(handle_unknown='ignore')`
-- [ ] **4.4:** Perform **Stratified Train-Test Split** (80/20, `random_state=42`, `stratify=y`) BEFORE any scaling, imputation fitting, or resampling to guarantee zero data leakage.
-- [ ] **4.5:** Configure class-imbalance strategies to compare: `class_weight='balanced'` vs. **SMOTE** (applied strictly inside cross-validation folds using `imblearn.pipeline.Pipeline`).
-- [ ] **4.6 (Review Gate):** Unit-test pipeline fit/transform shapes, verify zero NaNs in transformed matrices, and confirm no target leakage.
+- [x] **4.4:** Perform **Stratified Train-Test Split** (80/20, `random_state=42`, `stratify=y`) BEFORE any scaling, imputation fitting, or resampling to guarantee zero data leakage.
+- [x] **4.5:** Configure class-imbalance strategies to compare: `class_weight='balanced'` vs. **SMOTE** (applied strictly inside cross-validation folds using `imblearn.pipeline.Pipeline`).
+- [x] **4.6 (Review Gate):** Unit-test pipeline fit/transform shapes, verify zero NaNs in transformed matrices, and confirm no target leakage.
 
 ---
 
 ### Module 5: Predictive Modeling, Hyperparameter Tuning & Evaluation
 **Branch:** `feature-eng-and-modeling` (continued)  
 **Goal:** Train, tune, and compare multiple classification models (`src/train_models.py` & `notebooks/04_modeling_and_evaluation.ipynb`), prioritizing **clinical recall (sensitivity)** alongside **ROC-AUC**, **PR-AUC**, and **F1-Score**.
-- [ ] **5.1:** Train and benchmark at least **5 models** using **5-Fold Stratified Cross-Validation**:
+- [x] **5.1:** Train and benchmark at least **5 models** using **5-Fold Stratified Cross-Validation**:
   1. **Logistic Regression** (Mandatory primary interpretable model from Problem Statement)
   2. **Random Forest Classifier**
   3. **Gradient Boosting / XGBoost Classifier**
   4. **K-Nearest Neighbors (KNN)**
   5. **Gaussian Naive Bayes**
-- [ ] **5.2:** Compare imbalance handling (`class_weight='balanced'` vs. `SMOTE`) and evaluate on held-out Test Set using: **Recall (Sensitivity)**, **Precision**, **F1-Score**, **ROC-AUC**, **PR-AUC**, and **Specificity**.
-- [ ] **5.3:** Perform **Threshold Optimization** (e.g., tuning decision threshold from 0.50 to clinical triage thresholds for High/Moderate/Low risk tiers) to maximize Stroke Recall while controlling false alarms.
-- [ ] **5.4:** Perform Error Analysis (inspect False Negatives vs. False Positives) and generate comparative ROC Curve, Precision-Recall Curve, Confusion Matrix, and Feature Importance plots in `docs/figures/`.
-- [ ] **5.5:** Serialize the best interpretable model (`models/logistic_regression_pipeline.joblib`), best ensemble model (`models/best_model_pipeline.joblib`), and metadata/metrics JSON (`models/model_metrics.json`).
-- [ ] **5.6 (Review Gate):** Run an end-to-end inference test script on sample patient profiles, verify saved artifacts load cleanly, commit, push, and merge PR `feature-eng-and-modeling` into `main`.
+- [x] **5.2:** Compare imbalance handling (`class_weight='balanced'` vs. `SMOTE`) and evaluate on held-out Test Set using: **Recall (Sensitivity)**, **Precision**, **F1-Score**, **ROC-AUC**, **PR-AUC**, and **Specificity**.
+- [x] **5.3:** Perform **Threshold Optimization** (e.g., tuning decision threshold from 0.50 to clinical triage thresholds for High/Moderate/Low risk tiers) to maximize Stroke Recall while controlling false alarms.
+- [x] **5.4:** Perform Error Analysis (inspect False Negatives vs. False Positives) and generate comparative ROC Curve, Precision-Recall Curve, Confusion Matrix, and Feature Importance plots in `docs/figures/`.
+- [x] **5.5:** Serialize the best interpretable model (`models/logistic_regression_pipeline.joblib`), best ensemble model (`models/best_model_pipeline.joblib`), and metadata/metrics JSON (`models/model_metrics.json`).
+- [x] **5.6 (Review Gate):** Run an end-to-end inference test script on sample patient profiles, verify saved artifacts load cleanly, commit, push, and merge PR `feature-eng-and-modeling` into `main`.
 
 ---
 
