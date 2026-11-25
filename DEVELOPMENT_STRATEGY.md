@@ -159,11 +159,11 @@
 ### Module 7: Official Project Report (PDF), Presentation (PPT) & Viva Prep
 **Branch:** `docs-and-presentation`  
 **Goal:** Produce all required academic deliverables strictly adhering to the course documentation and presentation guidelines.
-- [ ] **7.1:** Checkout `main`, pull latest, and create branch `docs-and-presentation`.
-- [ ] **7.2:** Generate the complete 10-section **Official Project Report** (`docs/Project_Report_S230617_Vaddi_Varshitha.pdf`) formatted in Times New Roman / Arial (12 pt body, 14–16 pt Bold headings, 1.5 line spacing, justified alignment, numbered & captioned figures/tables).
-- [ ] **7.3:** Generate the **10–12 Slide Presentation** (`docs/Presentation_S230617_Vaddi_Varshitha.pptx`) following the exact Slide 1–10 rubric structure.
-- [ ] **7.4:** Create `docs/VIVA_PREP.md` containing 20+ likely Viva questions and clear, first-person analytical answers covering every pipeline choice.
-- [ ] **7.5 (Review Gate):** Verify PDF opens cleanly with all figures embedded, PPT has 10–12 slides with zero text overflow, commit, push, and merge PR `docs-and-presentation` into `main`.
+- [x] **7.1:** Checkout `main`, pull latest, and create branch `docs-and-presentation`.
+- [x] **7.2:** Generate the complete 10-section **Official Project Report** (`docs/Project_Report_S230617_Vaddi_Varshitha.pdf`) formatted in Times New Roman / Arial (12 pt body, 14–16 pt Bold headings, 1.5 line spacing, justified alignment, numbered & captioned figures/tables).
+- [x] **7.3:** Generate the **10–12 Slide Presentation** (`docs/Presentation_S230617_Vaddi_Varshitha.pptx`) following the exact Slide 1–10 rubric structure.
+- [x] **7.4:** Create `docs/VIVA_PREP.md` containing 20+ likely Viva questions and clear, first-person analytical answers covering every pipeline choice.
+- [x] **7.5 (Review Gate):** Verify PDF opens cleanly with all figures embedded, PPT has 10–12 slides with zero text overflow, commit, push, and merge PR `docs-and-presentation` into `main`.
 
 ---
 
