@@ -170,10 +170,10 @@
 ### Module 8: Final Repository Polish, README & Pre-Submission Audit
 **Branch:** `main` (via final PR `final-audit`)  
 **Goal:** Conduct a complete quality audit of the GitHub repository against every rule in the course handbook before submission.
-- [ ] **8.1:** Write a comprehensive root `README.md` (Project Title, Student Info, Problem Statement, Kaggle Dataset Link & Schema, Tech Stack, Key Findings, Architecture, and Exact Setup/Run Commands).
-- [ ] **8.2:** Run full repository audit:
+- [x] **8.1:** Write a comprehensive root `README.md` (Project Title, Student Info, Problem Statement, Kaggle Dataset Link & Schema, Tech Stack, Key Findings, Architecture, and Exact Setup/Run Commands).
+- [x] **8.2:** Run full repository audit:
   - Confirm `git log --oneline` shows steady, descriptive commits across feature branches and PR merges.
   - Confirm NO raw `.csv`, `.zip`, or `venv/` files exist in Git history or remote repo.
   - Confirm all notebooks run cleanly top-to-bottom with clear outputs.
   - Confirm `streamlit run src/app.py` launches cleanly in a fresh check.
-- [ ] **8.3 (Final Review Gate):** Present the Final Readiness Sign-Off checklist for submission before **30th November 2026**.
+- [x] **8.3 (Final Review Gate):** Present the Final Readiness Sign-Off checklist for submission before **30th November 2026**.
