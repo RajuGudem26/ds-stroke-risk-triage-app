@@ -113,14 +113,14 @@
 ### Module 4: Feature Engineering & Imbalance-Aware Preprocessing Pipeline
 **Branch:** `feature-eng-and-modeling`  
 **Goal:** Build a leakage-free Scikit-Learn `ColumnTransformer` + feature engineering module (`src/feature_engineering.py`) ready for both model training and live Streamlit inference.
-- [ ] **4.1:** Checkout `main`, pull latest, and create branch `feature-eng-and-modeling`.
-- [ ] **4.2:** Engineer clinically meaningful features: `bmi_category` (WHO), `glucose_risk_tier` (ADA), `age_group`, `cardiometabolic_risk_score` (`hypertension + heart_disease + (avg_glucose_level >= 140)`), and interaction terms (`age_x_glucose`, `hypertension_x_age`).
-- [ ] **4.3:** Build a unified Scikit-Learn preprocessing pipeline:
+- [x] **4.1:** Checkout `main`, pull latest, and create branch `feature-eng-and-modeling`.
+- [x] **4.2:** Engineer clinically meaningful features: `bmi_category` (WHO), `glucose_risk_tier` (ADA), `age_group`, `cardiometabolic_risk_score` (`hypertension + heart_disease + (avg_glucose_level >= 140)`), and interaction terms (`age_x_glucose`, `hypertension_x_age`).
+- [x] **4.3:** Build a unified Scikit-Learn preprocessing pipeline:
   - Numeric features: Iterative/Median Imputer + `StandardScaler`
   - Categorical features: Mode/Domain Imputer + `OneHotEncoder(handle_unknown='ignore')`
-- [ ] **4.4:** Perform **Stratified Train-Test Split** (80/20, `random_state=42`, `stratify=y`) BEFORE any scaling, imputation fitting, or resampling to guarantee zero data leakage.
-- [ ] **4.5:** Configure class-imbalance strategies to compare: `class_weight='balanced'` vs. **SMOTE** (applied strictly inside cross-validation folds using `imblearn.pipeline.Pipeline`).
-- [ ] **4.6 (Review Gate):** Unit-test pipeline fit/transform shapes, verify zero NaNs in transformed matrices, and confirm no target leakage.
+- [x] **4.4:** Perform **Stratified Train-Test Split** (80/20, `random_state=42`, `stratify=y`) BEFORE any scaling, imputation fitting, or resampling to guarantee zero data leakage.
+- [x] **4.5:** Configure class-imbalance strategies to compare: `class_weight='balanced'` vs. **SMOTE** (applied strictly inside cross-validation folds using `imblearn.pipeline.Pipeline`).
+- [x] **4.6 (Review Gate):** Unit-test pipeline fit/transform shapes, verify zero NaNs in transformed matrices, and confirm no target leakage.
 
 ---
 
