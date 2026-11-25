@@ -76,13 +76,13 @@
 ### Module 1: Data Ingestion, Auditing & Clinical Imputation Pipeline
 **Branch:** `setup-and-cleaning`  
 **Goal:** Audit raw data quality and build a reproducible preprocessing script (`src/data_cleaning.py`) + notebook (`notebooks/01_data_audit_and_cleaning.ipynb`) focusing on **BMI** and **Smoking Status** imputation.
-- [ ] **1.1:** Create and switch to branch `setup-and-cleaning`.
-- [ ] **1.2:** Load `healthcare-dataset-stroke-data.csv` and log shape, data types, duplicates, missing values, and class balance (`stroke` distribution).
-- [ ] **1.3:** Handle rare `gender == "Other"` record (1 row) cleanly with documented justification.
-- [ ] **1.4:** Audit `bmi` missing values (~201 NaNs) and extreme outliers (e.g., BMI > 60). Implement **Age- & Gender-Stratified Median / KNN Imputation** (fit on training split later to prevent leakage; exploratory clean copy for EDA) and create `bmi_was_missing` indicator.
-- [ ] **1.5:** Audit `smoking_status == "Unknown"` (~1,544 rows). Analyze its strong correlation with `age` (children < 12). Implement documented domain-aware handling: impute children `< 12` as `"never smoked"` and evaluate predictive/mode imputation vs. preserving `"Unknown"` with a `smoking_was_unknown` flag.
-- [ ] **1.6:** Save cleaned EDA dataset to `data/processed/stroke_cleaned_eda.csv` (gitignored) and unit-test `src/data_cleaning.py`.
-- [ ] **1.7 (Review Gate):** Verify zero unexpected NaNs, valid data types, clean notebook execution, commit, push, and merge PR into `main`.
+- [x] **1.1:** Create and switch to branch `setup-and-cleaning`.
+- [x] **1.2:** Load `healthcare-dataset-stroke-data.csv` and log shape, data types, duplicates, missing values, and class balance (`stroke` distribution).
+- [x] **1.3:** Handle rare `gender == "Other"` record (1 row) cleanly with documented justification.
+- [x] **1.4:** Audit `bmi` missing values (~201 NaNs) and extreme outliers (e.g., BMI > 60). Implement **Age- & Gender-Stratified Median / KNN Imputation** (fit on training split later to prevent leakage; exploratory clean copy for EDA) and create `bmi_was_missing` indicator.
+- [x] **1.5:** Audit `smoking_status == "Unknown"` (~1,544 rows). Analyze its strong correlation with `age` (children < 12). Implement documented domain-aware handling: impute children `< 12` as `"never smoked"` and evaluate predictive/mode imputation vs. preserving `"Unknown"` with a `smoking_was_unknown` flag.
+- [x] **1.6:** Save cleaned EDA dataset to `data/processed/stroke_cleaned_eda.csv` (gitignored) and unit-test `src/data_cleaning.py`.
+- [x] **1.7 (Review Gate):** Verify zero unexpected NaNs, valid data types, clean notebook execution, commit, push, and merge PR into `main`.
 
 ---
 
