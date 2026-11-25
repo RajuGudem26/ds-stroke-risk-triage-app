@@ -144,15 +144,15 @@
 ### Module 6: Interactive Streamlit Clinical Triage & Risk Screening App
 **Branch:** `streamlit-triage-app`  
 **Goal:** Build and verify a polished, clinical-grade Streamlit web application (`src/app.py`) for real-time stroke risk screening, explainability, and visual analytics.
-- [ ] **6.1:** Checkout `main`, pull latest, and create branch `streamlit-triage-app`.
-- [ ] **6.2:** Design a clean multi-tab layout with medical-grade styling:
+- [x] **6.1:** Checkout `main`, pull latest, and create branch `streamlit-triage-app`.
+- [x] **6.2:** Design a clean multi-tab layout with medical-grade styling:
   - **Tab 1: Clinical Triage Screener** — Interactive patient input form (Age, Gender, Hypertension, Heart Disease, Avg Glucose, BMI, Smoking Status, Marital Status, Work Type, Residence), model selector (Logistic Regression vs. Best Ensemble), real-time Risk Probability Gauge, Triage Tier Badge (`LOW` / `MODERATE` / `HIGH RISK`), and personalized actionable recommendations.
   - **Tab 2: Patient Risk Explainability** — Dynamic breakdown of which patient factors pushed risk up or down (local feature contributions / Odds Ratios).
   - **Tab 3: EDA & Statistical Evidence** — Interactive Plotly charts and Chi-Square / Odds Ratio summary tables.
   - **Tab 4: Model Benchmarks & Threshold Lab** — Interactive threshold slider showing live trade-off between Sensitivity (Recall) and False Positive Rate, plus model comparison table & ROC/PR curves.
-- [ ] **6.3:** Add a prominent **Clinical Decision-Support Disclaimer** clarifying this app is for educational screening support only, not a medical diagnosis.
-- [ ] **6.4:** Verify app launches cleanly via `streamlit run src/app.py` with zero exceptions, warnings, or broken layouts, and capture high-resolution screenshots for `docs/figures/`.
-- [ ] **6.5 (Review Gate):** Test edge-case patient inputs (infant, elderly high-glucose hypertensive smoker, missing/default values), commit, push, and merge PR `streamlit-triage-app` into `main`.
+- [x] **6.3:** Add a prominent **Clinical Decision-Support Disclaimer** clarifying this app is for educational screening support only, not a medical diagnosis.
+- [x] **6.4:** Verify app launches cleanly via `streamlit run src/app.py` with zero exceptions, warnings, or broken layouts, and capture high-resolution screenshots for `docs/figures/`.
+- [x] **6.5 (Review Gate):** Test edge-case patient inputs (infant, elderly high-glucose hypertensive smoker, missing/default values), commit, push, and merge PR `streamlit-triage-app` into `main`.
 
 ---
 
