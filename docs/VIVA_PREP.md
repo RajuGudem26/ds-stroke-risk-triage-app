@@ -1,111 +1,104 @@
-# Viva Defense Preparation Guide
-**Project #49:** Stroke Risk Factors & Clinical Triage App  
-**Student:** Vaddi Varshitha (`S230617`) | **Course:** Introduction to Data Science (`25A12104`)
+# My Viva Notes
 
 ---
 
-## 1. Data Preprocessing & Imputation
+## Data Preprocessing & Imputation
 
-**Q1: Why did you drop the single `gender == "Other"` row instead of keeping it?**  
-Only 1 row out of 5,110 (0.02%) has `gender = "Other"`. Keeping it would create a near-zero-variance dummy variable in one-hot encoding, violating Chi-Square expected cell count assumptions (expected < 5) and risking quasi-separation in Logistic Regression. Dropping 0.02% of data has negligible impact on statistical power.
+**Q1: Why did you drop the row where gender = "Other"?**  
+There was literally one row out of 5,110 with gender "Other". If I kept it, it would create a dummy variable with basically zero variance. That messes up Chi-Square tests (expected counts < 5) and can cause issues in logistic regression. Dropping one row doesn't hurt anything.
 
-**Q2: Why use Age-Band & Gender-Stratified Median imputation for BMI instead of a simple global median?**  
-BMI varies systematically with age and gender (e.g., children vs. elderly, male vs. female). A global median would mask these demographic patterns and introduce bias. Stratified imputation preserves the conditional distribution, producing more clinically realistic imputed values. I validated via CV ROC-AUC that stratified imputation performs comparably to KNN Imputer with lower computational cost.
+**Q2: Why use stratified median imputation for BMI instead of just the overall median?**  
+BMI depends a lot on age and gender — a kid's BMI is very different from an elderly person's. If I just used the global median, it would wash out those patterns. So I grouped by age band and gender, then used each group's median. I checked and it performs about the same as KNN imputation but it's way simpler.
 
-**Q3: Why create `bmi_was_missing` as a feature instead of just imputing and moving on?**  
-The stroke rate among patients with missing BMI is **19.9%** (40/201) compared to only **4.3%** (209/4,909) when BMI is recorded — a **4.7× higher prevalence**. This is not random missingness (MCAR); it is informative MNAR — likely reflecting acute/emergency admissions where patients are too ill to stand for measurement. The `bmi_was_missing` flag preserves this clinically valuable signal (confirmed as significant: OR = 3.70, p < 1e-9 in Logistic Regression).
+**Q3: Why did you create a `bmi_was_missing` flag?**  
+This was actually one of the coolest findings. Patients with missing BMI had a 19.9% stroke rate compared to only 4.3% for everyone else — that's almost 5x higher. My guess is that missing BMI means the patient came in through the ER and was too sick to stand on a scale. So the missingness itself is a useful feature. The logistic regression confirmed it: OR = 3.70, p < 1e-9.
 
 **Q4: How did you handle Unknown smoking status?**  
-Analysis showed 521 out of 543 children (< 12 years) had `Unknown` smoking status. I imputed these as `"never smoked"` (clinically valid — children don't smoke). For adults (>= 12), I compared two strategies via CV ROC-AUC:
-- **Retain "Unknown" as an explicit category** + `smoking_was_unknown` flag
-- **Predictive mode imputation** (age-band & gender stratified)
+I looked at who had "Unknown" and found that 521 out of 543 kids under 12 had it. So for children, I just set it to "never smoked" — makes sense, they're kids. For the adults, I tried imputing vs. just keeping "Unknown" as its own category. Both gave basically the same AUC (~0.847), so I kept "Unknown" as-is because I didn't want to make up smoking histories for people.
 
-Both yielded equivalent ROC-AUC (~0.847), so I chose to retain `"Unknown"` to avoid fabricating unverified smoking histories for 1,023 adults.
-
-**Q5: Why cap (winsorize) BMI at 65 instead of removing outliers?**  
-Only 5 records have BMI > 65 (max 97.6), and all are non-stroke cases. Deleting stroke cases with extreme values would bias the model; deleting only non-stroke cases would artificially inflate stroke prevalence. Winsorizing at 65 preserves these patients while preventing extreme leverage in linear/distance-based models. I confirmed via CV ROC-AUC that capping vs. not capping produces identical discrimination.
+**Q5: Why cap BMI at 65 instead of removing outliers?**  
+There were 5 people with BMI > 65 (one was 97.6 which seems like a data error). They were all non-stroke cases. I didn't want to delete them because that would mess with the class balance. Capping at 65 keeps them in the dataset without letting extreme values pull the model around. I checked — it makes no difference to AUC either way.
 
 ---
 
-## 2. EDA & Statistical Tests
+## EDA & Statistical Tests
 
-**Q6: Why not rely on Accuracy as the primary metric?**  
-With 95.13% of patients having `stroke = 0`, a naive majority-class classifier that always predicts "No Stroke" achieves 95.1% accuracy while catching **zero** actual stroke patients (0% Recall). In clinical screening, missing a stroke case (False Negative) is far worse than a false alarm. I use **ROC-AUC**, **PR-AUC**, **Recall (Sensitivity)**, and **F1-Score** as primary metrics.
+**Q6: Why not use accuracy as the main metric?**  
+Because the dataset is 95% "no stroke." A dumb model that always says "no stroke" gets 95.1% accuracy but catches zero actual strokes. That's useless for a screening tool. I used ROC-AUC, PR-AUC, Recall, and F1 instead — these actually care about finding the minority class.
 
-**Q7: Why Mann-Whitney U test instead of only Welch's t-test?**  
-Shapiro-Wilk and D'Agostino-Pearson normality tests reject normality (p < 0.001) for `age`, `avg_glucose_level`, and `bmi`. Mann-Whitney U is a non-parametric rank-based test that does not assume normal distributions. I report both: Mann-Whitney U as the primary robust test, and Welch's t-test as a secondary confirmatory check (which also does not require equal variances).
+**Q7: Why Mann-Whitney U instead of just a t-test?**  
+I ran normality tests (Shapiro-Wilk, D'Agostino) and they all rejected normality for age, glucose, and BMI. So a regular t-test's assumptions don't hold. Mann-Whitney is non-parametric — it works with ranks and doesn't need normal distributions. I reported both tests anyway, but Mann-Whitney is the one I trust more here.
 
-**Q8: What does Cramér's V tell you that the Chi-Square p-value alone does not?**  
-The Chi-Square p-value tells you *whether* a significant association exists (hypothesis rejection), but with large samples (n = 5,109), even trivially small associations become statistically significant. Cramér's V measures *effect size* (strength of association), ranging from 0 (no association) to 1 (perfect). For example, `Residence_type` has p = 0.30 (not significant) with Cramér's V = 0.015 (negligible), while `bmi_was_missing` has V = 0.139 (moderate effect).
+**Q8: What does Cramér's V add beyond the Chi-Square p-value?**  
+The p-value just says "is there a significant association or not." But with 5,000+ rows, even tiny associations can be statistically significant. Cramér's V tells you how strong the association actually is (0 = none, 1 = perfect). For example, Residence_type had p = 0.30 (not significant) with V = 0.015 (basically nothing), while bmi_was_missing had V = 0.139 which is a decent effect.
 
-**Q9: How do you interpret the Adjusted Odds Ratio for hypertension?**  
-The adjusted OR for `hypertension` is **1.39** (95% CI: 1.00–1.92, p = 0.049). This means: *after controlling for age, glucose, heart disease, BMI, smoking, gender, marital status, and residence*, patients with hypertension have **39% higher odds of stroke** compared to normotensive patients. The 95% CI barely includes 1.0, indicating borderline statistical significance — which is consistent with hypertension's risk being partially mediated through age and glucose.
+**Q9: How do you read the adjusted OR for hypertension?**  
+The adjusted OR is 1.39 (CI: 1.00–1.92, p = 0.049). What that means is: after controlling for age, glucose, heart disease, BMI, smoking, and everything else, hypertensive patients have 39% higher odds of stroke. The confidence interval just barely avoids crossing 1.0, so it's borderline significant. That makes sense — a lot of hypertension's effect works through age and glucose, so once you adjust for those, the independent contribution gets smaller.
 
-**Q10: What does `age_per_10yr` OR = 2.02 mean clinically?**  
-Every 10-year increase in age is associated with a **2.02× (102%) increase in the odds of stroke**, holding all other predictors constant. This is the strongest independent risk driver in the model — consistent with the epidemiological literature where stroke incidence approximately doubles each decade after age 55.
-
----
-
-## 3. Feature Engineering & Modeling
-
-**Q11: Why split BEFORE fitting imputers and scalers?**  
-If you fit imputers or scalers on the full dataset (including test data) and then split, information from the test set "leaks" into the training process — the model has implicitly "seen" test distributions. This inflates performance estimates. By splitting first and fitting transformers only on `X_train`, the test set remains truly unseen.
-
-**Q12: Why fit SMOTE inside CV folds instead of applying it once before CV?**  
-Applying SMOTE before cross-validation means synthetic minority samples generated from the entire training set could overlap with validation folds — creating optimistic bias. Using `imblearn.pipeline.Pipeline` ensures SMOTE runs only on each fold's training portion, keeping validation folds clean. This is the methodologically correct approach.
-
-**Q13: Why did `class_weight='balanced'` outperform SMOTE?**  
-`class_weight='balanced'` adjusts the loss function to weight minority-class errors higher (inversely proportional to class frequency). It does not create synthetic samples. SMOTE generates interpolated synthetic points in feature space, which can produce noisy examples — especially problematic when features include one-hot encoded categoricals (interpolating between binary dummies creates non-interpretable fractional values). For this dataset, cost-sensitive reweighting proved more robust.
-
-**Q14: Why is Logistic Regression competitive with tree ensembles here?**  
-Stroke risk in this cohort is dominated by smooth monotonic gradients (age, avg_glucose_level) and additive binary comorbidities (hypertension, bmi_was_missing). These are precisely the patterns that regularized linear models capture well. Tree ensembles add complexity but gain minimal discrimination because there are no strong non-linear interactions that the engineered features (age×glucose, cardiometabolic_risk_count) don't already capture. Logistic Regression also provides transparent log-odds coefficients for clinical explainability.
-
-**Q15: What is Youden's J statistic and how did you use it for threshold calibration?**  
-Youden's J = Sensitivity + Specificity − 1 = TPR − FPR. It identifies the ROC curve point that maximizes the trade-off between True Positive Rate and False Positive Rate. I computed J on out-of-fold (OOF) predictions from 5-fold Stratified CV to avoid overfitting the threshold to test data. The resulting calibrated screening threshold (~0.49–0.54) achieves 80–84% clinical Recall while maintaining ~64–75% Specificity.
+**Q10: What does the age OR of 2.02 per 10 years mean?**  
+For every 10 extra years of age, the odds of stroke roughly double, holding everything else constant. It's the strongest predictor in the model by far. This matches what you see in the medical literature — stroke risk roughly doubles every decade after 55.
 
 ---
 
-## 4. Streamlit App & Deployment
+## Feature Engineering & Modeling
 
-**Q16: What are the 3 clinical triage tiers and how are they determined?**  
-- **Low Risk:** Predicted probability < screening threshold (e.g., < 0.54 for LR). Routine preventive care.
-- **Moderate Risk:** Between screening and priority alert thresholds (e.g., 0.54–0.74). Preventive clinical review recommended.
-- **High Risk (Priority Triage):** Above priority alert threshold (e.g., >= 0.74). Urgent cardiovascular & glycemic evaluation.
+**Q11: Why split before fitting imputers and scalers?**  
+If you fit your transformers on the whole dataset and then split, the model has indirectly "seen" the test data distributions. That's data leakage and it makes your performance numbers look better than they actually are. I split first, fit everything on the training set only, and then transform the test set.
 
-Thresholds are calibrated on out-of-fold CV probabilities (targeting >= 80% Recall) and can be adjusted interactively in the app's sidebar.
+**Q12: Why apply SMOTE inside CV folds, not before?**  
+If you SMOTE the whole training set before cross-validation, some of the synthetic samples generated from one fold's data can leak into another fold's validation set. That gives you overly optimistic results. I used imbalanced-learn's Pipeline so SMOTE only runs on each fold's training portion. This is the correct way to do it.
+
+**Q13: Why did balanced class weights beat SMOTE?**  
+`class_weight='balanced'` just reweights the loss function so minority-class mistakes cost more. SMOTE creates synthetic data points by interpolating between existing ones. The problem is that with one-hot encoded features, interpolation gives you weird fractional values between 0 and 1 for binary dummies — those aren't real data points. For this dataset, the simpler reweighting approach worked better.
+
+**Q14: Why is logistic regression competitive with XGBoost and Random Forest?**  
+I think it's because stroke risk in this data is mostly driven by smooth, monotonic relationships — older age = more risk, higher glucose = more risk, etc. These are exactly the kind of patterns logistic regression handles well. The tree models add complexity but don't gain much because there aren't strong non-linear interactions that my engineered features (like age×glucose, cardiometabolic risk count) don't already capture. Plus LR gives you interpretable coefficients, which is nice for a clinical tool.
+
+**Q15: What is Youden's J and how did you use it?**  
+Youden's J = Sensitivity + Specificity − 1. It finds the threshold on the ROC curve where you get the best tradeoff between catching true positives and avoiding false positives. I calculated it on out-of-fold predictions from 5-fold CV (not on the test set) so I wouldn't overfit the threshold. The result was around 0.49–0.54, giving me 80–84% recall with 64–75% specificity.
+
+---
+
+## Streamlit App
+
+**Q16: What are the 3 risk tiers?**  
+- **Low Risk:** predicted probability below the screening threshold (~0.54). Just routine care.
+- **Moderate Risk:** between the screening and priority thresholds (0.54–0.74). Should probably get checked out.
+- **High Risk:** above the priority threshold (≥0.74). Needs urgent evaluation.
+
+The thresholds come from the CV-calibrated cutoffs and you can tweak them in the app sidebar.
 
 **Q17: How does the explainability tab work?**  
-For the Logistic Regression model, each patient's log-odds score is a linear combination: `Σ(standardized_x_i × β_i) + intercept`. The Tab 2 bar chart shows the product `transformed_value × coefficient` for each feature, visually decomposing *why* a particular patient received their risk score. Positive bars push risk up; negative bars reduce risk.
+Since I'm using logistic regression, each prediction is just a sum of (feature value × coefficient). The bar chart in Tab 2 shows each feature's contribution to the final score — positive bars push risk up, negative bars reduce it. So you can see exactly why a specific patient got their risk level.
 
-**Q18: Why include a Clinical Decision-Support Disclaimer?**  
-The model is trained on retrospective hospital records from a single source. It cannot account for imaging biomarkers, genetic factors, medication history, or temporal causation. It is an academic screening prototype and must never replace licensed clinical evaluation or diagnosis. The disclaimer ensures ethical transparency.
-
----
-
-## 5. GitHub & Project Management
-
-**Q19: Why use feature branches instead of committing directly to main?**  
-Feature branches (`setup-and-cleaning`, `eda-and-stats`, `feature-eng-and-modeling`, `streamlit-triage-app`, `docs-and-presentation`) isolate each development phase. This enables incremental Pull Request reviews, clean rollback if needed, and a clear commit history. It mirrors industry-standard Git workflows.
-
-**Q20: Why are CSV, ZIP, and venv files excluded from Git?**  
-Raw data files are large and sensitive; they should not be version-controlled. The `.gitignore` excludes `*.csv`, `*.xlsx`, `*.zip`, `venv/`, `.env`, `__pycache__/`, and `.ipynb_checkpoints/`. Instead, `data/README.md` documents the Kaggle download URL and data dictionary so anyone can reproduce the project.
+**Q18: Why include a disclaimer?**  
+The model is trained on one retrospective dataset. It doesn't know about imaging, genetics, medications, or any causal relationships. It's just a school project, not a real medical tool. The disclaimer makes that clear so nobody mistakes it for actual clinical advice.
 
 ---
 
-## 6. Advanced Questions
+## GitHub & Project Management
 
-**Q21: What would you do differently if the class imbalance were even more severe (e.g., 0.1%)?**  
-I would consider: (1) Cost-sensitive learning with higher minority-class penalty; (2) Anomaly/one-class detection (Isolation Forest, Autoencoders); (3) Stratified undersampling ensembles (BalancedBagging, EasyEnsemble); (4) Focal loss for gradient-boosted models; (5) Prospective enriched sampling to increase case prevalence.
+**Q19: Why use feature branches?**  
+Instead of committing everything to main and hoping nothing breaks, I used separate branches for each phase (cleaning, EDA, modeling, app, docs). This way I could review changes before merging and easily roll back if something went wrong. It's also just good practice for any real project.
 
-**Q22: How would you validate this model for real-world hospital deployment?**  
-(1) External validation on multi-center, multi-ethnic cohorts; (2) Prospective temporal validation (train on 2020–2024, test on 2025+); (3) Calibration analysis (reliability diagrams) to verify predicted probabilities match observed frequencies; (4) Fairness audits across age, gender, and ethnic subgroups; (5) HIPAA/GDPR compliance review; (6) Integration testing with Electronic Health Record (EHR) APIs.
+**Q20: Why are data files gitignored?**  
+CSVs can be large and you shouldn't put raw data in version control anyway. The `.gitignore` excludes CSVs, zip files, the venv folder, `__pycache__`, and notebook checkpoints. The data README has the Kaggle link and instructions so anyone can download it themselves.
 
-**Q23: What is the difference between ROC-AUC and PR-AUC, and when is each more informative?**  
-ROC-AUC measures discrimination across all thresholds using True Positive Rate vs. False Positive Rate. It is insensitive to class imbalance because it uses FPR (which is dominated by the large majority class). PR-AUC uses Precision vs. Recall, which is more informative under severe imbalance because Precision directly reflects the proportion of flagged patients who are true positives. For clinical screening with 4.87% prevalence, PR-AUC better reflects real-world triage workload.
+---
 
-**Q24: Why did you scale continuous features with StandardScaler instead of MinMaxScaler?**  
-StandardScaler (zero mean, unit variance) is preferred for Logistic Regression because the L2 regularization penalty treats all coefficients equally when features are on the same scale. MinMaxScaler is sensitive to outliers and would compress most values into a narrow range given the extreme BMI/glucose values. KNN also benefits from StandardScaler over MinMaxScaler for distance computation.
+## Harder Questions
 
-**Q25: If you could add one external data source, what would it be and why?**  
-I would add **longitudinal blood pressure readings** (systolic/diastolic over time) from EHR records. The current binary `hypertension` variable (yes/no) loses information about severity, duration, and control status. Continuous blood pressure trajectories would significantly improve risk stratification and enable time-to-event (survival) modeling.
+**Q21: What if the imbalance was even worse, like 0.1% positive?**  
+I'd look into cost-sensitive learning with higher penalties, anomaly detection approaches like Isolation Forest, ensemble methods designed for imbalance (BalancedBagging, EasyEnsemble), focal loss for gradient boosting, or maybe collecting more positive cases through enriched sampling.
 
+**Q22: How would you validate this for a real hospital?**  
+You'd need external validation on data from other hospitals and populations, prospective testing on future data, calibration analysis to check if the predicted probabilities actually match reality, fairness audits across demographics, privacy compliance checks, and integration testing with actual EHR systems. Basically a lot more work than a capstone project.
+
+**Q23: ROC-AUC vs PR-AUC — when does each matter more?**  
+ROC-AUC uses TPR vs FPR and is fairly stable across class imbalances since FPR is dominated by the big majority class. PR-AUC uses Precision vs Recall and is more sensitive to imbalance because precision directly measures what fraction of your flagged patients are actually positive. For a 5% prevalence problem like this, PR-AUC gives you a better picture of how useful the model would be in practice.
+
+**Q24: Why StandardScaler instead of MinMaxScaler?**  
+StandardScaler centers features to zero mean and unit variance. This matters for logistic regression because L2 regularization penalizes all coefficients equally — if features aren't on the same scale, the penalty is unfair. MinMaxScaler would squish everything into [0,1] but it's really sensitive to outliers, and my BMI and glucose columns have some extreme values.
+
+**Q25: If you could add one external data source, what would it be?**  
+Longitudinal blood pressure readings — like systolic and diastolic over time from medical records. Right now hypertension is just a yes/no variable, which throws away a lot of information about how severe it is, how long they've had it, and whether it's controlled. Having the actual BP trajectories would make the risk predictions way better and you could even do survival analysis with time-to-event modeling.

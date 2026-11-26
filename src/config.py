@@ -1,8 +1,8 @@
-"""Centralized configuration, paths, random seeds, and clinical reference thresholds."""
+"""Central config file — paths, seeds, clinical thresholds."""
 
 from pathlib import Path
 
-# Directory Paths
+# paths
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 DATA_RAW_PATH = DATA_DIR / "raw" / "healthcare-dataset-stroke-data.csv"
@@ -17,17 +17,17 @@ METRICS_PATH = MODELS_DIR / "model_metrics.json"
 DOCS_DIR = PROJECT_ROOT / "docs"
 FIGURES_DIR = DOCS_DIR / "figures"
 
-# Reproducibility & Modeling Parameters
+# reproducibility
 RANDOM_STATE = 42
 TEST_SIZE = 0.20
 CV_FOLDS = 5
 ALPHA = 0.05
 
-# Data Cleaning Constants
+# cleaning constants
 BMI_CAP = 65.0
 PEDIATRIC_SMOKING_AGE_CUTOFF = 12.0
 
-# Clinical Reference Bins & Labels (WHO / ADA / AHA)
+# clinical bins (WHO / ADA / AHA)
 AGE_BINS = [0.0, 18.0, 45.0, 65.0, 120.0]
 AGE_LABELS = ["<18", "18-44", "45-64", ">=65"]
 
@@ -42,11 +42,11 @@ ADA_GLUCOSE_LABELS = [
     "Severe (>=200)",
 ]
 
-# Default Clinical Triage Risk Tier Thresholds (calibrated further in Module 5)
+# default triage thresholds (refined after modeling)
 DEFAULT_LOW_RISK_THRESHOLD = 0.25
 DEFAULT_HIGH_RISK_THRESHOLD = 0.55
 
-# Expected Feature Columns (excluding id & stroke)
+# feature column groups
 NUMERIC_FEATURES = ["age", "avg_glucose_level", "bmi"]
 BINARY_FEATURES = [
     "hypertension",
@@ -61,4 +61,3 @@ CATEGORICAL_FEATURES = [
     "Residence_type",
     "smoking_status",
 ]
-

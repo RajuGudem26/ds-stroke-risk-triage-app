@@ -1,10 +1,7 @@
-"""Statistical hypothesis testing and epidemiological Odds Ratio modeling."""
-
-from __future__ import annotations
+"""Statistical hypothesis testing and odds ratio modeling."""
 
 import json
 from pathlib import Path
-from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,49 +21,31 @@ from src.config import (
 )
 
 
-def add_clinical_test_bins(df: pd.DataFrame) -> pd.DataFrame:
-    """Add WHO BMI and ADA Glucose clinical tiers for Chi-Square testing."""
+def add_clinical_test_bins(df):
+    """Add WHO BMI and ADA glucose tiers for chi-square testing."""
     out = df.copy()
     out["bmi_category"] = pd.cut(
-        out["bmi"],
-        bins=WHO_BMI_BINS,
-        labels=WHO_BMI_LABELS,
-        right=False,
-        include_lowest=True,
+        out["bmi"], bins=WHO_BMI_BINS, labels=WHO_BMI_LABELS,
+        right=False, include_lowest=True,
     ).astype(str)
     out["glucose_risk_tier"] = pd.cut(
-        out["avg_glucose_level"],
-        bins=ADA_GLUCOSE_BINS,
-        labels=ADA_GLUCOSE_LABELS,
-        right=False,
-        include_lowest=True,
+        out["avg_glucose_level"], bins=ADA_GLUCOSE_BINS, labels=ADA_GLUCOSE_LABELS,
+        right=False, include_lowest=True,
     ).astype(str)
     return out
 
 
-def run_chi_square_suite(
-    df: pd.DataFrame,
-    features: list[str] | None = None,
-    target: str = "stroke",
-    alpha: float = ALPHA,
-) -> pd.DataFrame:
-    """Run Chi-Square tests of independence with Cramér's V effect sizes."""
+def run_chi_square_suite(df, features=None, target="stroke", alpha=ALPHA):
+    """Run chi-square tests of independence with Cramer's V effect sizes."""
     binned = add_clinical_test_bins(df)
     if features is None:
         features = [
-            "hypertension",
-            "heart_disease",
-            "glucose_risk_tier",
-            "bmi_category",
-            "smoking_status",
-            "ever_married",
-            "work_type",
-            "Residence_type",
-            "gender",
-            "bmi_was_missing",
+            "hypertension", "heart_disease", "glucose_risk_tier",
+            "bmi_category", "smoking_status", "ever_married",
+            "work_type", "Residence_type", "gender", "bmi_was_missing",
         ]
 
-    rows: list[dict[str, Any]] = []
+    rows = []
     n_total = len(binned)
 
     for feat in features:
@@ -74,38 +53,30 @@ def run_chi_square_suite(
         chi2, p_val, dof, expected = stats.chi2_contingency(ct)
         min_dim = min(ct.shape) - 1
         cramers_v = float(np.sqrt(chi2 / (n_total * min_dim))) if min_dim > 0 else 0.0
-        rows.append(
-            {
-                "feature": feat,
-                "chi2": float(chi2),
-                "dof": int(dof),
-                "p_value": float(p_val),
-                "cramers_v": cramers_v,
-                "min_expected_cell": float(expected.min()),
-                "decision": "Reject H0 (Significant)" if p_val < alpha else "Fail to Reject H0",
-            }
-        )
+        rows.append({
+            "feature": feat,
+            "chi2": float(chi2),
+            "dof": int(dof),
+            "p_value": float(p_val),
+            "cramers_v": cramers_v,
+            "min_expected_cell": float(expected.min()),
+            "decision": "Reject H0 (Significant)" if p_val < alpha else "Fail to Reject H0",
+        })
 
-    res_df = pd.DataFrame(rows).sort_values("p_value").reset_index(drop=True)
-    return res_df
+    return pd.DataFrame(rows).sort_values("p_value").reset_index(drop=True)
 
 
-def run_continuous_group_tests(
-    df: pd.DataFrame,
-    features: list[str] | None = None,
-    target: str = "stroke",
-    alpha: float = ALPHA,
-) -> pd.DataFrame:
-    """Run normality, Mann-Whitney U (primary), and Welch's t-test for continuous features."""
+def run_continuous_group_tests(df, features=None, target="stroke", alpha=ALPHA):
+    """Run normality checks, Mann-Whitney U, and Welch's t-test for continuous features."""
     if features is None:
         features = ["age", "avg_glucose_level", "bmi"]
 
-    rows: list[dict[str, Any]] = []
+    rows = []
     for feat in features:
         g0 = df.loc[df[target] == 0, feat].dropna()
         g1 = df.loc[df[target] == 1, feat].dropna()
 
-        # Normality checks (D'Agostino-Pearson on full cohort; Shapiro on <=5000 sample)
+        # normality checks
         _, dagostino_p = stats.normaltest(df[feat].dropna())
         shapiro_sample = df[feat].dropna().sample(n=min(4999, len(df)), random_state=42)
         _, shapiro_p = stats.shapiro(shapiro_sample)
@@ -113,37 +84,31 @@ def run_continuous_group_tests(
         u_stat, mw_p = stats.mannwhitneyu(g1, g0, alternative="two-sided")
         t_stat, welch_p = stats.ttest_ind(g1, g0, equal_var=False)
 
-        rows.append(
-            {
-                "feature": feat,
-                "non_stroke_median": float(g0.median()),
-                "non_stroke_iqr": float(g0.quantile(0.75) - g0.quantile(0.25)),
-                "stroke_median": float(g1.median()),
-                "stroke_iqr": float(g1.quantile(0.75) - g1.quantile(0.25)),
-                "non_stroke_mean": float(g0.mean()),
-                "stroke_mean": float(g1.mean()),
-                "shapiro_p": float(shapiro_p),
-                "dagostino_p": float(dagostino_p),
-                "mann_whitney_u": float(u_stat),
-                "mann_whitney_p": float(mw_p),
-                "welch_t": float(t_stat),
-                "welch_p": float(welch_p),
-                "decision": "Reject H0 (Significant)" if mw_p < alpha else "Fail to Reject H0",
-            }
-        )
+        rows.append({
+            "feature": feat,
+            "non_stroke_median": float(g0.median()),
+            "non_stroke_iqr": float(g0.quantile(0.75) - g0.quantile(0.25)),
+            "stroke_median": float(g1.median()),
+            "stroke_iqr": float(g1.quantile(0.75) - g1.quantile(0.25)),
+            "non_stroke_mean": float(g0.mean()),
+            "stroke_mean": float(g1.mean()),
+            "shapiro_p": float(shapiro_p),
+            "dagostino_p": float(dagostino_p),
+            "mann_whitney_u": float(u_stat),
+            "mann_whitney_p": float(mw_p),
+            "welch_t": float(t_stat),
+            "welch_p": float(welch_p),
+            "decision": "Reject H0 (Significant)" if mw_p < alpha else "Fail to Reject H0",
+        })
 
     return pd.DataFrame(rows)
 
 
-def fit_epidemiological_logit(
-    df: pd.DataFrame,
-) -> tuple[sm.discrete.discrete_model.BinaryResultsWrapper, pd.DataFrame]:
-    """Fit multivariable Statsmodels Logit for clinically interpretable Odds Ratios.
+def fit_epidemiological_logit(df):
+    """Fit a multivariable logit model and return odds ratios.
 
-    Continuous predictors are scaled to clinically intuitive increments:
-    - `age_per_10yr`: Age / 10 (OR reflects risk change per 10 years of aging)
-    - `glucose_per_10mgdl`: Avg Glucose / 10 (OR reflects risk change per 10 mg/dL)
-    - `bmi_per_5unit`: BMI / 5 (OR reflects risk change per 5 kg/m² unit)
+    Continuous predictors are scaled to clinically useful increments:
+    age per 10 years, glucose per 10 mg/dL, BMI per 5 units.
     """
     model_df = pd.DataFrame(index=df.index)
     model_df["age_per_10yr"] = df["age"] / 10.0
@@ -156,7 +121,7 @@ def fit_epidemiological_logit(
     model_df["ever_married"] = (df["ever_married"] == "Yes").astype(float)
     model_df["urban_residence"] = (df["Residence_type"] == "Urban").astype(float)
 
-    # Reference level for smoking_status: 'never smoked'
+    # reference level for smoking: 'never smoked'
     for status in ["formerly smoked", "smokes", "Unknown"]:
         col_name = f"smoking_{status.replace(' ', '_')}"
         model_df[col_name] = (df["smoking_status"] == status).astype(float)
@@ -167,65 +132,48 @@ def fit_epidemiological_logit(
     logit_res = sm.Logit(y, X).fit(disp=False, maxiter=200)
 
     ci = logit_res.conf_int()
-    or_df = pd.DataFrame(
-        {
-            "predictor": logit_res.params.index,
-            "beta": logit_res.params.values,
-            "std_err": logit_res.bse.values,
-            "odds_ratio": np.exp(logit_res.params.values),
-            "ci_lower_95": np.exp(ci[0].values),
-            "ci_upper_95": np.exp(ci[1].values),
-            "p_value": logit_res.pvalues.values,
-        }
-    )
+    or_df = pd.DataFrame({
+        "predictor": logit_res.params.index,
+        "beta": logit_res.params.values,
+        "std_err": logit_res.bse.values,
+        "odds_ratio": np.exp(logit_res.params.values),
+        "ci_lower_95": np.exp(ci[0].values),
+        "ci_upper_95": np.exp(ci[1].values),
+        "p_value": logit_res.pvalues.values,
+    })
     or_df["significant"] = or_df["p_value"] < ALPHA
     or_df = or_df[or_df["predictor"] != "const"].reset_index(drop=True)
     return logit_res, or_df
 
 
-def plot_odds_ratios_forest(
-    or_df: pd.DataFrame,
-    save_path: Path | str = FIGURES_DIR / "07_odds_ratios_forest_plot.png",
-) -> Path:
-    """Create and save a 300-DPI Forest Plot of Adjusted Odds Ratios with 95% CIs."""
+def plot_odds_ratios_forest(or_df, save_path=FIGURES_DIR / "07_odds_ratios_forest_plot.png"):
+    """Create a forest plot of adjusted odds ratios with 95% CIs."""
     plot_df = or_df.sort_values("odds_ratio", ascending=True).reset_index(drop=True)
     fig, ax = plt.subplots(figsize=(9.5, 6.2))
 
-    y_pos = np.arange(len(plot_df))
     colors = ["#c53030" if sig else "#718096" for sig in plot_df["significant"]]
 
     for idx, row in plot_df.iterrows():
         ax.errorbar(
-            x=row["odds_ratio"],
-            y=idx,
+            x=row["odds_ratio"], y=idx,
             xerr=[[row["odds_ratio"] - row["ci_lower_95"]], [row["ci_upper_95"] - row["odds_ratio"]]],
-            fmt="o",
-            color=colors[idx],
-            ecolor=colors[idx],
-            elinewidth=2.0,
-            capsize=4,
-            markersize=7,
+            fmt="o", color=colors[idx], ecolor=colors[idx],
+            elinewidth=2.0, capsize=4, markersize=7,
         )
         ax.text(
-            row["ci_upper_95"] * 1.04,
-            idx,
+            row["ci_upper_95"] * 1.04, idx,
             f"OR={row['odds_ratio']:.2f} (p={row['p_value']:.3g})",
-            va="center",
-            fontsize=8.8,
-            color="#1a202c",
+            va="center", fontsize=8.8, color="#1a202c",
         )
 
     ax.axvline(1.0, color="#1a202c", linestyle="--", linewidth=1.2, label="Null Effect (OR = 1.0)")
-    ax.set_yticks(y_pos)
+    ax.set_yticks(range(len(plot_df)))
     ax.set_yticklabels(plot_df["predictor"])
     ax.set_xscale("log")
     ax.set_xlim(0.35, max(plot_df["ci_upper_95"].max() * 2.2, 12.0))
     ax.set_xlabel("Adjusted Odds Ratio (Log Scale, 95% CI)")
-    ax.set_title(
-        "Figure 7: Multivariable Logistic Regression Adjusted Odds Ratios (95% CI)",
-        fontweight="bold",
-        pad=12,
-    )
+    ax.set_title("Figure 7: Multivariable Logistic Regression Adjusted Odds Ratios (95% CI)",
+                 fontweight="bold", pad=12)
     ax.legend(loc="lower right")
     sns.despine(ax=ax)
     plt.tight_layout()
@@ -237,11 +185,8 @@ def plot_odds_ratios_forest(
     return out_path
 
 
-def run_all_statistical_tests(
-    eda_csv_path: Path | str = CLEANED_EDA_PATH,
-    figures_dir: Path | str = FIGURES_DIR,
-) -> dict[str, Any]:
-    """Execute full Module 3 suite, generate Forest plot, and persist JSON tables."""
+def run_all_statistical_tests(eda_csv_path=CLEANED_EDA_PATH, figures_dir=FIGURES_DIR):
+    """Run the full stats suite: chi-square, continuous tests, logit, and forest plot."""
     df = pd.read_csv(eda_csv_path)
     chi_df = run_chi_square_suite(df)
     cont_df = run_continuous_group_tests(df)
@@ -250,6 +195,7 @@ def run_all_statistical_tests(
     fig_dir = Path(figures_dir)
     forest_path = plot_odds_ratios_forest(or_df, fig_dir / "07_odds_ratios_forest_plot.png")
 
+    # save everything to JSON for the app
     summary_payload = {
         "n_observations": int(len(df)),
         "alpha": ALPHA,
@@ -283,4 +229,3 @@ if __name__ == "__main__":
     print(results["odds_ratios"][["predictor", "odds_ratio", "ci_lower_95", "ci_upper_95", "p_value", "significant"]].to_string(index=False))
     print("\nSaved forest plot:", results["forest_plot_path"])
     print("Saved JSON tables:", results["summary_json_path"])
-

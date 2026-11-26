@@ -1,9 +1,6 @@
-"""Reproducible data auditing, missing-value imputation, and clinical cleaning utilities."""
-
-from __future__ import annotations
+"""Data auditing, missing-value imputation, and cleaning utilities."""
 
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -19,8 +16,8 @@ from src.config import (
 )
 
 
-def load_raw_data(path: Path | str = DATA_RAW_PATH) -> pd.DataFrame:
-    """Load the raw Kaggle stroke dataset from CSV."""
+def load_raw_data(path=DATA_RAW_PATH):
+    """Load the raw Kaggle stroke dataset."""
     csv_path = Path(path)
     if not csv_path.exists():
         raise FileNotFoundError(
@@ -30,8 +27,8 @@ def load_raw_data(path: Path | str = DATA_RAW_PATH) -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
 
-def audit_raw_data(df: pd.DataFrame) -> dict[str, Any]:
-    """Compute a structured quality audit of the raw stroke dataset."""
+def audit_raw_data(df):
+    """Run a quality audit on the raw dataset and return a summary dict."""
     bmi_missing = df["bmi"].isna()
     stroke_rate_bmi_present = float(df.loc[~bmi_missing, "stroke"].mean())
     stroke_rate_bmi_missing = float(df.loc[bmi_missing, "stroke"].mean())
@@ -59,8 +56,8 @@ def audit_raw_data(df: pd.DataFrame) -> dict[str, Any]:
     }
 
 
-def _assign_age_band(age_series: pd.Series) -> pd.Series:
-    """Bin continuous age into clinical age bands for stratified imputation."""
+def _assign_age_band(age_series):
+    """Bin age into clinical age bands for stratified imputation."""
     return pd.cut(
         age_series,
         bins=AGE_BINS,
@@ -71,48 +68,41 @@ def _assign_age_band(age_series: pd.Series) -> pd.Series:
 
 
 class ClinicalDataCleaner(BaseEstimator, TransformerMixin):
-    """Leakage-free clinical cleaner and imputer for the Stroke Prediction dataset.
+    """Leakage-free cleaner and imputer for the stroke dataset.
 
-    Steps applied:
-    1. Drop non-predictive `id` column if present.
-    2. Handle rare `gender == 'Other'` (map to modal gender during inference;
-       filter rows beforehand for training/EDA via `drop_other_gender_rows`).
-    3. Create missingness indicator flags `bmi_was_missing` and `smoking_was_unknown`.
-    4. Domain-aware smoking imputation: children `< 12` with `'Unknown'` become
-       `'never smoked'`; adult `'Unknown'` (`>= 12`) can be retained (`'keep'`)
-       or imputed using training-fit age-band & gender modes (`'mode'`).
-    5. Age-band & gender-stratified median BMI imputation (fit only on training rows)
-       plus upper winsorization at `bmi_cap`.
+    Handles: id column removal, rare gender mapping, missingness flags,
+    smoking imputation (kids -> never smoked), stratified BMI imputation,
+    and BMI winsorization.
     """
 
     def __init__(
         self,
-        bmi_cap: float | None = BMI_CAP,
-        pediatric_age_cutoff: float = PEDIATRIC_SMOKING_AGE_CUTOFF,
-        adult_unknown_strategy: str = "keep",
-        map_other_gender_to: str = "Female",
-    ) -> None:
+        bmi_cap=BMI_CAP,
+        pediatric_age_cutoff=PEDIATRIC_SMOKING_AGE_CUTOFF,
+        adult_unknown_strategy="keep",
+        map_other_gender_to="Female",
+    ):
         self.bmi_cap = bmi_cap
         self.pediatric_age_cutoff = pediatric_age_cutoff
         self.adult_unknown_strategy = adult_unknown_strategy
         self.map_other_gender_to = map_other_gender_to
 
-    def fit(self, X: pd.DataFrame, y: Any = None) -> "ClinicalDataCleaner":
-        """Learn stratified BMI medians and optional adult smoking modes from training data."""
+    def fit(self, X, y=None):
+        """Learn stratified BMI medians and smoking modes from training data."""
         df = X.copy()
         if "gender" in df.columns:
             df["gender"] = df["gender"].replace({"Other": self.map_other_gender_to})
 
         df["_age_band"] = _assign_age_band(df["age"])
 
-        # Stratified BMI medians by (age_band, gender), with age_band & global fallbacks
+        # stratified BMI medians with fallbacks
         self.global_bmi_median_ = float(df["bmi"].median())
         self.age_bmi_medians_ = df.groupby("_age_band")["bmi"].median().to_dict()
         self.stratified_bmi_medians_ = (
             df.groupby(["_age_band", "gender"])["bmi"].median().to_dict()
         )
 
-        # Optional age-band & gender modal smoking status for adults >= cutoff
+        # smoking modes for adult unknown imputation (if needed)
         known_adults = df[
             (df["age"] >= self.pediatric_age_cutoff)
             & (df["smoking_status"] != "Unknown")
@@ -132,28 +122,31 @@ class ClinicalDataCleaner(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Apply learned clinical cleaning rules without modifying the input frame."""
+    def transform(self, X):
+        """Apply the cleaning rules learned during fit."""
         df = X.copy()
+
+        # drop id column
         if "id" in df.columns:
             df = df.drop(columns=["id"])
 
+        # map rare "Other" gender
         if "gender" in df.columns:
             df["gender"] = df["gender"].replace({"Other": self.map_other_gender_to})
 
-        # Preserve informative missingness signals
+        # create missingness indicator flags
         df["bmi_was_missing"] = df["bmi"].isna().astype(int)
         df["smoking_was_unknown"] = (df["smoking_status"] == "Unknown").astype(int)
 
         age_bands = _assign_age_band(df["age"])
 
-        # Domain rule 1: pediatric Unknown (<12) -> never smoked
+        # kids with unknown smoking -> never smoked (makes sense, they're kids)
         pediatric_unknown = (df["smoking_status"] == "Unknown") & (
             df["age"] < self.pediatric_age_cutoff
         )
         df.loc[pediatric_unknown, "smoking_status"] = "never smoked"
 
-        # Domain rule 2: adult Unknown (>=12)
+        # adult unknown smoking
         if self.adult_unknown_strategy == "mode":
             adult_unknown = (df["smoking_status"] == "Unknown") & (
                 df["age"] >= self.pediatric_age_cutoff
@@ -170,7 +163,7 @@ class ClinicalDataCleaner(BaseEstimator, TransformerMixin):
                 f"Unsupported adult_unknown_strategy: {self.adult_unknown_strategy}"
             )
 
-        # Age-band & gender-stratified median BMI imputation
+        # fill missing BMI using age-band & gender stratified medians
         bmi_missing_mask = df["bmi"].isna()
         if bmi_missing_mask.any():
             imputed_bmis = []
@@ -186,11 +179,11 @@ class ClinicalDataCleaner(BaseEstimator, TransformerMixin):
                 imputed_bmis.append(float(val))
             df.loc[bmi_missing_mask, "bmi"] = imputed_bmis
 
-        # Winsorize implausible extreme BMI outliers if configured
+        # cap extreme BMI values
         if self.bmi_cap is not None:
             df["bmi"] = df["bmi"].clip(upper=self.bmi_cap)
 
-        # Enforce clean numeric dtypes
+        # make sure dtypes are clean
         df["age"] = df["age"].astype(float)
         df["avg_glucose_level"] = df["avg_glucose_level"].astype(float)
         df["bmi"] = df["bmi"].astype(float)
@@ -202,17 +195,14 @@ class ClinicalDataCleaner(BaseEstimator, TransformerMixin):
         return df
 
 
-def drop_other_gender_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """Exclude the single rare 'Other' gender row (0.02%) for statistical modeling."""
+def drop_other_gender_rows(df):
+    """Remove the single 'Other' gender row (only 1 out of 5110)."""
     return df[df["gender"] != "Other"].reset_index(drop=True)
 
 
-def clean_for_eda(
-    raw_path: Path | str = DATA_RAW_PATH,
-    save_path: Path | str | None = CLEANED_EDA_PATH,
-    adult_unknown_strategy: str = "keep",
-) -> tuple[pd.DataFrame, dict[str, Any]]:
-    """Load raw data, run audit, apply clinical cleaning, and export EDA dataset."""
+def clean_for_eda(raw_path=DATA_RAW_PATH, save_path=CLEANED_EDA_PATH,
+                  adult_unknown_strategy="keep"):
+    """Load raw data, audit it, clean it, and save the EDA-ready dataset."""
     raw_df = load_raw_data(raw_path)
     audit = audit_raw_data(raw_df)
 
@@ -235,8 +225,7 @@ if __name__ == "__main__":
     assert "id" not in cleaned.columns, "id column should be dropped"
     assert "Other" not in cleaned["gender"].values, "Other gender row should be removed"
     assert cleaned["bmi"].max() <= BMI_CAP, "BMI cap exceeded"
-    print("Module 1 cleaning unit checks PASSED!")
+    print("Cleaning checks PASSED!")
     print("Raw audit summary:", raw_audit)
     print("Cleaned shape:", cleaned.shape)
-    print("Smoking status distribution after cleaning:\n", cleaned["smoking_status"].value_counts())
-
+    print("Smoking status distribution:\n", cleaned["smoking_status"].value_counts())

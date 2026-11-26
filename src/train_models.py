@@ -1,10 +1,7 @@
-"""End-to-end model training, 5-fold Stratified CV, threshold calibration, and artifact serialization."""
-
-from __future__ import annotations
+"""Model training, cross-validation, threshold calibration, and saving results."""
 
 import json
 from pathlib import Path
-from typing import Any
 
 import joblib
 import matplotlib.pyplot as plt
@@ -42,12 +39,8 @@ from src.config import (
 from src.feature_engineering import load_stratified_train_test, make_modeling_pipeline
 
 
-def compute_classification_metrics(
-    y_true: np.ndarray | pd.Series,
-    y_prob: np.ndarray,
-    threshold: float = 0.50,
-) -> dict[str, float]:
-    """Compute imbalance-aware clinical classification metrics at a decision threshold."""
+def compute_classification_metrics(y_true, y_prob, threshold=0.50):
+    """Compute classification metrics at a given decision threshold."""
     y_pred = (y_prob >= threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
     specificity = float(tn / (tn + fp)) if (tn + fp) > 0 else 0.0
@@ -67,32 +60,25 @@ def compute_classification_metrics(
     }
 
 
-def calibrate_triage_thresholds(
-    y_true: np.ndarray | pd.Series,
-    oof_probs: np.ndarray,
-    target_recall: float = 0.80,
-) -> dict[str, float]:
-    """Calibrate screening threshold (Recall >= target_recall) and Youden's J threshold on OOF predictions."""
+def calibrate_triage_thresholds(y_true, oof_probs, target_recall=0.80):
+    """Find screening threshold (>= target recall) and Youden's J threshold."""
     fpr, tpr, thresholds = roc_curve(y_true, oof_probs)
     valid_mask = np.isfinite(thresholds)
     fpr, tpr, thresholds = fpr[valid_mask], tpr[valid_mask], thresholds[valid_mask]
 
-    # Youden's J = TPR - FPR
+    # Youden's J = TPR - FPR (maximizes the tradeoff)
     j_scores = tpr - fpr
     youden_idx = int(np.argmax(j_scores))
     youden_thresh = float(thresholds[youden_idx])
 
-    # Highest threshold achieving at least target_recall
+    # find the highest threshold that still gives >= target recall
     recall_candidates = np.where(tpr >= target_recall)[0]
     if len(recall_candidates) > 0:
         screen_thresh = float(thresholds[recall_candidates[0]])
     else:
         screen_thresh = youden_thresh
 
-    # Define 3-tier clinical triage bands anchored to OOF screening recall (~80%):
-    # Low: < low_thresh (high-sensitivity screening cutoff)
-    # Moderate: [low_thresh, high_thresh)
-    # High: >= high_thresh (higher-precision priority clinical alert)
+    # set up 3-tier triage bands
     low_thresh = float(np.clip(round(screen_thresh, 2), 0.20, 0.55))
     high_thresh = float(np.clip(round(max(youden_thresh + 0.15, low_thresh + 0.20), 2), 0.45, 0.80))
     if high_thresh <= low_thresh + 0.10:
@@ -106,34 +92,30 @@ def calibrate_triage_thresholds(
     }
 
 
-def build_threshold_sweep(
-    y_true: np.ndarray | pd.Series,
-    y_prob: np.ndarray,
-) -> list[dict[str, float]]:
-    """Precompute test-set sensitivity/specificity trade-offs across thresholds 0.10..0.90."""
+def build_threshold_sweep(y_true, y_prob):
+    """Compute metrics across thresholds 0.10 to 0.90 for the threshold lab."""
     rows = []
     for t in np.round(np.arange(0.10, 0.91, 0.05), 2):
         rows.append(compute_classification_metrics(y_true, y_prob, threshold=float(t)))
     return rows
 
 
-def extract_feature_importances(
-    lr_pipe: Any,
-    ensemble_pipe: Any,
-    top_n: int = 12,
-) -> dict[str, list[dict[str, float]]]:
-    """Extract signed/absolute LR coefficients and ensemble feature importances."""
+def extract_feature_importances(lr_pipe, ensemble_pipe, top_n=12):
+    """Get top feature importances from LR coefficients and ensemble importances."""
     feat_names = list(lr_pipe.named_steps["preprocessor"].get_feature_names_out())
     lr_coefs = lr_pipe.named_steps["classifier"].coef_[0]
-    lr_df = pd.DataFrame(
-        {"feature": feat_names, "coefficient": lr_coefs, "abs_importance": np.abs(lr_coefs)}
-    ).sort_values("abs_importance", ascending=False)
+    lr_df = pd.DataFrame({
+        "feature": feat_names,
+        "coefficient": lr_coefs,
+        "abs_importance": np.abs(lr_coefs),
+    }).sort_values("abs_importance", ascending=False)
 
     ens_names = list(ensemble_pipe.named_steps["preprocessor"].get_feature_names_out())
     ens_imp = ensemble_pipe.named_steps["classifier"].feature_importances_
-    ens_df = pd.DataFrame(
-        {"feature": ens_names, "importance": ens_imp}
-    ).sort_values("importance", ascending=False)
+    ens_df = pd.DataFrame({
+        "feature": ens_names,
+        "importance": ens_imp,
+    }).sort_values("importance", ascending=False)
 
     return {
         "logistic_regression": lr_df.head(top_n).to_dict(orient="records"),
@@ -141,12 +123,8 @@ def extract_feature_importances(
     }
 
 
-def _save_roc_pr_plot(
-    y_test: pd.Series,
-    test_probs_by_model: dict[str, np.ndarray],
-    save_path: Path,
-) -> None:
-    """Save 300-DPI combined ROC & Precision-Recall curve comparison for all 5 models."""
+def _save_roc_pr_plot(y_test, test_probs_by_model, save_path):
+    """Save combined ROC and PR curve comparison plot."""
     fig, axes = plt.subplots(1, 2, figsize=(14.5, 5.8))
     palette = ["#c53030", "#2b6cb0", "#2f855a", "#d69e2e", "#805ad5"]
 
@@ -166,8 +144,8 @@ def _save_roc_pr_plot(
     axes[0].legend(loc="lower right", fontsize=8.5)
     sns.despine(ax=axes[0])
 
-    baseline_prevalence = float(y_test.mean())
-    axes[1].axhline(baseline_prevalence, color="black", linestyle="--", lw=1.1, label=f"No-Skill Baseline ({baseline_prevalence:.3f})")
+    baseline = float(y_test.mean())
+    axes[1].axhline(baseline, color="black", linestyle="--", lw=1.1, label=f"No-Skill Baseline ({baseline:.3f})")
     axes[1].set_xlabel("Recall (Sensitivity)")
     axes[1].set_ylabel("Precision (PPV)")
     axes[1].set_title("Precision-Recall Curve Comparison (Imbalance-Aware)", fontweight="bold")
@@ -180,16 +158,9 @@ def _save_roc_pr_plot(
     plt.close(fig)
 
 
-def _save_confusion_matrices_plot(
-    y_test: pd.Series,
-    lr_probs: np.ndarray,
-    ens_probs: np.ndarray,
-    lr_thresh: float,
-    ens_thresh: float,
-    ens_name: str,
-    save_path: Path,
-) -> None:
-    """Save 300-DPI Confusion Matrices at calibrated clinical triage thresholds."""
+def _save_confusion_matrices_plot(y_test, lr_probs, ens_probs, lr_thresh,
+                                   ens_thresh, ens_name, save_path):
+    """Save confusion matrices at the calibrated thresholds."""
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 5.0))
     specs = [
         (axes[0], lr_probs, lr_thresh, f"Logistic Regression (Thresh = {lr_thresh:.2f})"),
@@ -201,15 +172,9 @@ def _save_confusion_matrices_plot(
         preds = (probs >= thresh).astype(int)
         cm = confusion_matrix(y_test, preds, labels=[0, 1])
         sns.heatmap(
-            cm,
-            annot=True,
-            fmt="d",
-            cmap="Blues",
-            cbar=False,
-            xticklabels=labels,
-            yticklabels=labels,
-            annot_kws={"size": 12, "weight": "bold"},
-            ax=ax,
+            cm, annot=True, fmt="d", cmap="Blues", cbar=False,
+            xticklabels=labels, yticklabels=labels,
+            annot_kws={"size": 12, "weight": "bold"}, ax=ax,
         )
         rec = recall_score(y_test, preds, zero_division=0)
         spec = cm[0, 0] / (cm[0, 0] + cm[0, 1])
@@ -223,12 +188,8 @@ def _save_confusion_matrices_plot(
     plt.close(fig)
 
 
-def _save_feature_importance_plot(
-    importances: dict[str, list[dict[str, float]]],
-    ens_name: str,
-    save_path: Path,
-) -> None:
-    """Save 300-DPI Feature Importance plot comparing Logistic Regression & Best Ensemble."""
+def _save_feature_importance_plot(importances, ens_name, save_path):
+    """Save feature importance comparison: LR coefficients vs ensemble importances."""
     fig, axes = plt.subplots(1, 2, figsize=(15.0, 5.8))
 
     lr_df = pd.DataFrame(importances["logistic_regression"]).iloc[::-1]
@@ -251,12 +212,9 @@ def _save_feature_importance_plot(
     plt.close(fig)
 
 
-def train_and_evaluate_all(
-    raw_path: Path | str = DATA_RAW_PATH,
-    models_dir: Path | str = MODELS_DIR,
-    figures_dir: Path | str = FIGURES_DIR,
-) -> dict[str, Any]:
-    """Run full Module 5 benchmark, calibration, error analysis, plots, and serialization."""
+def train_and_evaluate_all(raw_path=DATA_RAW_PATH, models_dir=MODELS_DIR,
+                            figures_dir=FIGURES_DIR):
+    """Train all 5 models, evaluate, calibrate thresholds, save plots and models."""
     models_path = Path(models_dir)
     figs_path = Path(figures_dir)
     models_path.mkdir(parents=True, exist_ok=True)
@@ -266,27 +224,31 @@ def train_and_evaluate_all(
     cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
     neg_pos_ratio = float((y_train == 0).sum() / (y_train == 1).sum())
 
-    # 1. Imbalance Strategy Comparison (class_weight='balanced' vs SMOTE)
+    # --- imbalance strategy comparison ---
     imbalance_comparison = []
     for name, est_factory, smote_flag in [
-        ("Logistic Regression (class_weight='balanced')", lambda: LogisticRegression(C=0.5, class_weight="balanced", max_iter=1000, random_state=RANDOM_STATE), False),
-        ("Logistic Regression (SMOTE in CV)", lambda: LogisticRegression(C=0.5, max_iter=1000, random_state=RANDOM_STATE), True),
-        ("Random Forest (class_weight='balanced')", lambda: RandomForestClassifier(n_estimators=300, max_depth=6, min_samples_leaf=8, class_weight="balanced", random_state=RANDOM_STATE, n_jobs=-1), False),
-        ("Random Forest (SMOTE in CV)", lambda: RandomForestClassifier(n_estimators=300, max_depth=6, min_samples_leaf=8, random_state=RANDOM_STATE, n_jobs=-1), True),
+        ("Logistic Regression (class_weight='balanced')",
+         lambda: LogisticRegression(C=0.5, class_weight="balanced", max_iter=1000, random_state=RANDOM_STATE), False),
+        ("Logistic Regression (SMOTE in CV)",
+         lambda: LogisticRegression(C=0.5, max_iter=1000, random_state=RANDOM_STATE), True),
+        ("Random Forest (class_weight='balanced')",
+         lambda: RandomForestClassifier(n_estimators=300, max_depth=6, min_samples_leaf=8,
+                                        class_weight="balanced", random_state=RANDOM_STATE, n_jobs=-1), False),
+        ("Random Forest (SMOTE in CV)",
+         lambda: RandomForestClassifier(n_estimators=300, max_depth=6, min_samples_leaf=8,
+                                        random_state=RANDOM_STATE, n_jobs=-1), True),
     ]:
         pipe = make_modeling_pipeline(est_factory(), use_smote=smote_flag)
         oof = cross_val_predict(pipe, X_train, y_train, cv=cv, method="predict_proba")[:, 1]
-        imbalance_comparison.append(
-            {
-                "experiment": name,
-                "cv_roc_auc": float(roc_auc_score(y_train, oof)),
-                "cv_pr_auc": float(average_precision_score(y_train, oof)),
-                "cv_f1_at_050": float(f1_score(y_train, (oof >= 0.5).astype(int))),
-                "cv_recall_at_050": float(recall_score(y_train, (oof >= 0.5).astype(int))),
-            }
-        )
+        imbalance_comparison.append({
+            "experiment": name,
+            "cv_roc_auc": float(roc_auc_score(y_train, oof)),
+            "cv_pr_auc": float(average_precision_score(y_train, oof)),
+            "cv_f1_at_050": float(f1_score(y_train, (oof >= 0.5).astype(int))),
+            "cv_recall_at_050": float(recall_score(y_train, (oof >= 0.5).astype(int))),
+        })
 
-    # 2. Tune & Benchmark 5 Distinct Model Families
+    # --- benchmark 5 model families with GridSearchCV ---
     candidates = {
         "Logistic Regression": (
             make_modeling_pipeline(
@@ -309,10 +271,8 @@ def train_and_evaluate_all(
         "XGBoost": (
             make_modeling_pipeline(
                 XGBClassifier(
-                    scale_pos_weight=neg_pos_ratio,
-                    eval_metric="logloss",
-                    random_state=RANDOM_STATE,
-                    n_jobs=-1,
+                    scale_pos_weight=neg_pos_ratio, eval_metric="logloss",
+                    random_state=RANDOM_STATE, n_jobs=-1,
                 ),
                 use_smote=False,
             ),
@@ -333,52 +293,48 @@ def train_and_evaluate_all(
         ),
     }
 
-    fitted_models: dict[str, Any] = {}
-    oof_probs_by_model: dict[str, np.ndarray] = {}
-    test_probs_by_model: dict[str, np.ndarray] = {}
-    leaderboard: list[dict[str, Any]] = []
-    calibrations: dict[str, dict[str, float]] = {}
+    fitted_models = {}
+    oof_probs_by_model = {}
+    test_probs_by_model = {}
+    leaderboard = []
+    calibrations = {}
 
     for model_name, (pipe, param_grid) in candidates.items():
         gs = GridSearchCV(
-            estimator=pipe,
-            param_grid=param_grid,
-            cv=cv,
-            scoring="roc_auc",
-            n_jobs=-1,
-            refit=True,
+            estimator=pipe, param_grid=param_grid, cv=cv,
+            scoring="roc_auc", n_jobs=-1, refit=True,
         )
         gs.fit(X_train, y_train)
         best_pipe = gs.best_estimator_
         fitted_models[model_name] = best_pipe
 
+        # get out-of-fold and test predictions
         oof_probs = cross_val_predict(best_pipe, X_train, y_train, cv=cv, method="predict_proba")[:, 1]
         test_probs = best_pipe.predict_proba(X_test)[:, 1]
         oof_probs_by_model[model_name] = oof_probs
         test_probs_by_model[model_name] = test_probs
 
+        # calibrate triage thresholds on OOF predictions
         calib = calibrate_triage_thresholds(y_train, oof_probs, target_recall=0.80)
         calibrations[model_name] = calib
 
         test_default = compute_classification_metrics(y_test, test_probs, threshold=0.50)
         test_calibrated = compute_classification_metrics(y_test, test_probs, threshold=calib["low_risk_max"])
 
-        leaderboard.append(
-            {
-                "model": model_name,
-                "best_params": {k.replace("classifier__", ""): v for k, v in gs.best_params_.items()},
-                "cv_roc_auc": float(roc_auc_score(y_train, oof_probs)),
-                "cv_pr_auc": float(average_precision_score(y_train, oof_probs)),
-                "calibrated_screen_thresh": calib["low_risk_max"],
-                "high_risk_thresh": calib["high_risk_min"],
-                "test_roc_auc": test_default["roc_auc"],
-                "test_pr_auc": test_default["pr_auc"],
-                "test_default_050": test_default,
-                "test_calibrated": test_calibrated,
-            }
-        )
+        leaderboard.append({
+            "model": model_name,
+            "best_params": {k.replace("classifier__", ""): v for k, v in gs.best_params_.items()},
+            "cv_roc_auc": float(roc_auc_score(y_train, oof_probs)),
+            "cv_pr_auc": float(average_precision_score(y_train, oof_probs)),
+            "calibrated_screen_thresh": calib["low_risk_max"],
+            "high_risk_thresh": calib["high_risk_min"],
+            "test_roc_auc": test_default["roc_auc"],
+            "test_pr_auc": test_default["pr_auc"],
+            "test_default_050": test_default,
+            "test_calibrated": test_calibrated,
+        })
 
-    # Identify best ensemble model (Random Forest vs XGBoost by CV ROC-AUC)
+    # pick best ensemble (RF vs XGBoost)
     ensemble_candidates = [row for row in leaderboard if row["model"] in {"Random Forest", "XGBoost"}]
     best_ensemble_row = max(ensemble_candidates, key=lambda r: (r["cv_roc_auc"], r["cv_pr_auc"]))
     best_ensemble_name = best_ensemble_row["model"]
@@ -387,11 +343,11 @@ def train_and_evaluate_all(
     lr_pipe = fitted_models["Logistic Regression"]
     best_ens_pipe = fitted_models[best_ensemble_name]
 
-    # Save serialized pipelines
+    # save the trained pipelines
     joblib.dump(lr_pipe, models_path / LR_MODEL_PATH.name)
     joblib.dump(best_ens_pipe, models_path / BEST_MODEL_PATH.name)
 
-    # Generate 300-DPI evaluation plots
+    # generate evaluation plots
     _save_roc_pr_plot(y_test, test_probs_by_model, figs_path / "08_model_comparison_roc_pr.png")
     _save_confusion_matrices_plot(
         y_test,
@@ -405,7 +361,7 @@ def train_and_evaluate_all(
     feat_importances = extract_feature_importances(lr_pipe, best_ens_pipe, top_n=12)
     _save_feature_importance_plot(feat_importances, best_ensemble_name, figs_path / "10_feature_importance.png")
 
-    # Error Analysis on Test Set (Logistic Regression at calibrated screening threshold)
+    # error analysis on the LR model
     lr_thresh = calibrations["Logistic Regression"]["low_risk_max"]
     lr_test_probs = test_probs_by_model["Logistic Regression"]
     lr_preds = (lr_test_probs >= lr_thresh).astype(int)
@@ -433,12 +389,11 @@ def train_and_evaluate_all(
         ].head(5).to_dict(orient="records"),
     }
 
-    # Precompute ROC & PR curve arrays + threshold sweeps for Streamlit Tab 4
+    # precompute ROC/PR curve data for the streamlit app
     curve_data = {}
     for name, probs in test_probs_by_model.items():
         fpr, tpr, _ = roc_curve(y_test, probs)
         prec, rec, _ = precision_recall_curve(y_test, probs)
-        # Downsample PR points if very dense for compact JSON
         step = max(1, len(rec) // 120)
         curve_data[name] = {
             "fpr": [round(float(x), 4) for x in fpr],
@@ -447,6 +402,7 @@ def train_and_evaluate_all(
             "pr_precision": [round(float(x), 4) for x in prec[::step]],
         }
 
+    # save everything to JSON
     metrics_payload = {
         "dataset_split": {
             "train_rows": int(len(X_train)),
@@ -485,20 +441,17 @@ if __name__ == "__main__":
     summary_rows = []
     for row in payload["leaderboard"]:
         cal = row["test_calibrated"]
-        summary_rows.append(
-            {
-                "Model": row["model"],
-                "CV_ROC": round(row["cv_roc_auc"], 4),
-                "CV_PR": round(row["cv_pr_auc"], 4),
-                "Test_ROC": round(row["test_roc_auc"], 4),
-                "Test_PR": round(row["test_pr_auc"], 4),
-                "Thresh": row["calibrated_screen_thresh"],
-                "Recall": round(cal["recall_sensitivity"], 4),
-                "Spec": round(cal["specificity"], 4),
-                "F1": round(cal["f1_score"], 4),
-            }
-        )
+        summary_rows.append({
+            "Model": row["model"],
+            "CV_ROC": round(row["cv_roc_auc"], 4),
+            "CV_PR": round(row["cv_pr_auc"], 4),
+            "Test_ROC": round(row["test_roc_auc"], 4),
+            "Test_PR": round(row["test_pr_auc"], 4),
+            "Thresh": row["calibrated_screen_thresh"],
+            "Recall": round(cal["recall_sensitivity"], 4),
+            "Spec": round(cal["specificity"], 4),
+            "F1": round(cal["f1_score"], 4),
+        })
     print(pd.DataFrame(summary_rows).to_string(index=False))
     print("\nBest overall CV model:", payload["best_overall_model"])
     print("Best ensemble model:", payload["best_ensemble_model"])
-    print("Error analysis:", payload["error_analysis"])

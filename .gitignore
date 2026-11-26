@@ -1,4 +1,4 @@
-# Environments & Secrets
+# virtual envs
 venv/
 .venv/
 .env
@@ -6,7 +6,7 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 
-# Data Files (Do NOT push raw/large datasets to GitHub)
+# data files — don't push these to github
 *.csv
 *.xlsx
 *.zip
@@ -14,8 +14,7 @@ data/raw/*
 data/processed/*
 !data/README.md
 
-# OS / IDE artifacts
+# OS / IDE junk
 .DS_Store
 Thumbs.db
 .vscode/
-
